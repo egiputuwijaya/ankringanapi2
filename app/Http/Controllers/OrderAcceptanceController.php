@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Events\OrderAccepted;
+use App\Models\Order;
+use App\Models\OrderAcceptance;
+use App\Services\OrderService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class OrderAcceptanceController extends Controller
+{
+    public function __construct(private readonly OrderService $orderService)
+    {
+    }
+    public function accept(Request $request, Order $order)
+    {
+        $scope = (string) ($request->input('scope') ?: 'cashier');
+
+        $request->validate([
+            'scope' => 'in:cashier,kitchen',
+        ]);
+
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        // Tanpa ini siapa pun yang authenticated bisa accept order outlet
+        // manapun hanya dengan menebak ID order, memicu broadcast print ke
+        // printer outlet lain dan mengklaim cashier_id secara tidak sah.
+        if ($user->role !== 'developer') {
+            $authorized = $user->role === 'manager'
+                ? \App\Models\Outlet::where('id', $order->outlet_id)->where('owner_id', $user->id)->exists()
+                : (int) $user->outlet_id === (int) $order->outlet_id;
+
+            if (!$authorized) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
+        }
+
+        return DB::transaction(function () use ($order, $user, $scope) {
+            if ($order->status === Order::STATUS_CANCELLED) {
+                return response()->json(['message' => 'Order sudah dibatalkan.'], 422);
+            }
+
+            if (is_null($order->user_id) && $order->payment_method === 'qris' && $order->status !== Order::STATUS_PAID) {
+                return response()->json([
+                    'message' => 'Gagal! Pelanggan belum menyelesaikan pembayaran.'
+                ], 422);
+            }
+
+            if ($order->status !== Order::STATUS_PAID && $order->payment_method !== 'cash') {
+                if ($order->status !== Order::STATUS_PENDING) {
+                    return response()->json(['message' => 'Order tidak valid untuk diterima.'], 422);
+                }
+            } elseif ($order->status !== Order::STATUS_PAID && $order->payment_method === 'cash') {
+                // Kalau cash, tetap wajib paid (kasir sudah terima uang baru boleh dicentang/di-accept)
+                return response()->json(['message' => 'Order cash harus paid sebelum diterima.'], 422);
+            }
+
+            // Pastikan history_transactions ikut tercatat saat tombol accept/terima
+            // Mengirim overrideCashierId agar langsung terisi tanpa query terpisah
+            $this->orderService->syncHistoryTransaction($order->fresh(), $user->id);
+
+            /** @var OrderAcceptance $acceptance */
+            $acceptance = OrderAcceptance::query()
+                ->where('order_id', $order->id)
+                ->where('scope', $scope)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$acceptance) {
+                $acceptance = OrderAcceptance::create([
+                    'order_id' => $order->id,
+                    'accepted_by' => $user->id,
+                    'scope' => $scope,
+                    'accepted_at' => now(),
+                    'printed_at' => now(),
+                ]);
+            } elseif (is_null($acceptance->accepted_at)) {
+                $acceptance->update([
+                    'accepted_by' => $user->id,
+                    'accepted_at' => now(),
+                    'printed_at' => now(),
+                ]);
+            }
+
+            // OrderAccepted event akan memuat relasi yang diperlukan via loadMissing
+            $order->refresh();
+
+            event(new OrderAccepted($order, $scope, $user->id));
+
+            return response()->json([
+                'message' => 'Order accepted',
+                'order' => $order->load('items.product', 'table', 'payment', 'latestAcceptance'),
+                'acceptance' => [
+                    'order_id' => $acceptance->order_id,
+                    'scope' => $acceptance->scope,
+                    'accepted_at' => $acceptance->accepted_at,
+                ]
+            ]);
+        });
+    }
+}

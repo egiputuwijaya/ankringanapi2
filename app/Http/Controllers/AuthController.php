@@ -1,0 +1,359 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
+
+class AuthController extends Controller
+{
+// Mengambil data Shift aktif berdasarkan jam DAN tanggal saat ini
+    private function getActiveShift(User $user, int $outletId)
+    {
+        $currentDate = now()->format('Y-m-d');
+        $currentTime = now()->format('H:i:s');
+
+        // 1. Cek sistem jadwal harian (tabel shift_schedules)
+        $scheduleToday = DB::table('shift_schedules')
+            ->where('user_id', $user->id)
+            ->where('outlet_id', $outletId)
+            ->where('date', $currentDate)
+            ->first();
+
+        if ($scheduleToday) {
+            // Jika ada jadwal hari ini, ambil master shift-nya dan cocokkan jamnya
+            return \App\Models\Shift::where('id', $scheduleToday->shift_id)
+                ->where(function ($query) use ($currentTime) {
+                    $query
+                        ->where(function ($q) use ($currentTime) {
+                            $q->whereColumn('start_time', '<=', 'end_time')
+                              ->whereTime('start_time', '<=', $currentTime)
+                              ->whereTime('end_time', '>=', $currentTime);
+                        })
+                        ->orWhere(function ($q) use ($currentTime) {
+                            $q->whereColumn('start_time', '>', 'end_time')
+                                ->where(function ($q2) use ($currentTime) {
+                                $q2->whereTime('start_time', '<=', $currentTime)
+                                ->orWhereTime('end_time', '>=', $currentTime);
+                            });
+                        });
+                })->first();
+        }
+
+        // 2. Fallback: Jika tidak ada jadwal harian, cek tabel lama (shift_user)
+        return $user->shifts()
+            ->where('outlet_id', $outletId)
+            ->where(function ($query) use ($currentTime) {
+                $query
+                    ->where(function ($q) use ($currentTime) {
+                        $q->whereColumn('start_time', '<=', 'end_time')
+                            ->whereTime('start_time', '<=', $currentTime)
+                            ->whereTime('end_time', '>=', $currentTime);
+                    })
+                    ->orWhere(function ($q) use ($currentTime) {
+                        $q->whereColumn('start_time', '>', 'end_time')
+                            ->where(function ($q2) use ($currentTime) {
+                                $q2->whereTime('start_time', '<=', $currentTime)
+                                    ->orWhereTime('end_time', '>=', $currentTime);
+                            });
+                    });
+            })
+            ->first();
+    }
+
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:6|confirmed',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'phone_number' => 'nullable|string|max:30',
+        ]);
+
+        $user = new User();
+        $user->name = $request->name;
+        $user->email = strtolower($request->email);
+        $user->password = Hash::make($request->password);
+        $user->image = $this->storeImageIfUploaded($request);
+        $user->phone_number = $request->phone_number;
+        $user->role = 'manager';
+        $user->save();
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Registrasi berhasil',
+            'token' => $token,
+            'user' => $user
+        ], 201);
+    }
+
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required'
+        ]);
+
+        $user = User::where('email', strtolower($request->email))->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Email atau password salah'
+            ], 401);
+        }
+
+        // Karyawan hanya boleh login lewat PIN (lihat loginPin()). Password
+        // mereka diisi default ('12345678') saat akun dibuat dan tidak pernah
+        // dikomunikasikan ke karyawan, jadi endpoint email+password ini HARUS
+        // ditolak untuk role karyawan - kalau tidak, siapa pun yang tahu/menebak
+        // email karyawan bisa login pakai password default yang predictable.
+        if ($user->role === 'karyawan') {
+            return response()->json([
+                'message' => 'Akun karyawan hanya bisa login menggunakan PIN.'
+            ], 403);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login berhasil',
+            'token' => $token,
+            'shift_id' => null,
+            'user' => $user->load('outlet')->makeVisible('midtrans_server_key')
+        ]);
+    }
+
+    /**
+     * LOGIN PIN (KARYAWAN - FLUTTER)
+     */
+    public function loginPin(Request $request)
+    {
+        $request->validate([
+            'pin' => 'required|digits:6',
+            'outlet_id' => 'required|exists:outlets,id'
+        ]);
+
+        $user = User::where('pin', (string) $request->pin)
+            ->where('outlet_id', $request->outlet_id)
+            ->where('role', 'karyawan')
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'PIN salah atau karyawan tidak terdaftar di outlet ini.'
+            ], 401);
+        }
+
+        if (!$user->is_active) {
+            return response()->json([
+                'message' => 'Akun karyawan tidak aktif'
+            ], 403);
+        }
+
+        // Cek Master Shift (Apakah ada jadwal jam kerja?)
+        $activeShift = $this->getActiveShift($user, (int) $request->outlet_id);
+        $shiftId = $activeShift ? $activeShift->id : null;
+
+        // ==============================================================
+        // CEK VALIDASI KAS AWAL LANGSUNG DARI DATABASE
+        // ==============================================================
+        $openingBalance = null; // Default null (belum isi kas awal)
+
+        if ($activeShift) {
+            // Cek ke tabel transaksi (shift_karyawans) apakah sesi kasir sudah dibuka hari ini
+            $shiftTransaksi = \App\Models\ShiftKaryawan::where('user_id', $user->id)
+                ->where('shift_id', $activeShift->id)
+                ->where('outlet_id', $request->outlet_id)
+                ->whereNull('ended_at') // Jika null, berarti kasir BELUM ditutup (End Shift)
+                ->whereDate('started_at', now()->format('Y-m-d')) // Pastikan ini transaksi hari ini
+                ->first();
+
+            // Jika datanya ada di database, ambil nominal kas awalnya
+            if ($shiftTransaksi) {
+                $openingBalance = $shiftTransaksi->opening_balance;
+            }
+        }
+        // ==============================================================
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login berhasil',
+            'token' => $token,
+            'shift_id' => $shiftId,
+            'opening_balance' => $openingBalance, // <-- SEKARANG BACKEND MENGIRIM INI KE FLUTTER
+            'user' => $user->load('outlet')
+        ]);
+    }
+
+    public function me(Request $request)
+    {
+        return response()->json([
+            'user' => $request->user()->load('outlet')->makeVisible('midtrans_server_key')
+        ]);
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'password' => 'nullable|string|min:8|confirmed',
+            'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'phone_number' => 'nullable|string|max:30',
+            'midtrans_server_key' => 'nullable|string',
+        ]);
+
+        $user->name = $request->name;
+        $user->email = strtolower($request->email);
+        if ($request->hasFile('image')) {
+            if ($user->image) {
+                Storage::disk('public')->delete($user->image);
+            }
+
+            $user->image = $this->storeImageIfUploaded($request);
+        }
+        $user->phone_number = $request->phone_number;
+
+        if ($request->has('midtrans_server_key') || array_key_exists('midtrans_server_key', $request->all())) {
+            $user->midtrans_server_key = $request->input('midtrans_server_key');
+        }
+
+        if ($request->filled('password')) {
+            $user->password = \Illuminate\Support\Facades\Hash::make($request->password);
+        }
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profil berhasil diperbarui.',
+            'user' => $user->makeVisible('midtrans_server_key')
+        ]);
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email'
+        ]);
+
+        $user = User::where('email', strtolower($request->email))->first();
+
+        if (!$user || !in_array($user->role, ['manager', 'developer'])) {
+            // Jangan ungkap apakah email terdaftar atau tidak (user enumeration prevention)
+            return response()->json([
+                'message' => 'Link reset password sudah dikirim ke email'
+            ]);
+        }
+
+        $token = Str::random(60);
+
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            [
+                'token' => Hash::make($token),
+                'created_at' => now()
+            ]
+        );
+
+        $frontendUrl = rtrim(config('app.frontend_url'), '/');
+        $resetLink = "$frontendUrl/reset-password?token=$token&email=" . urlencode($user->email);
+
+        $emailBody = view('emails.password-reset', compact('user', 'resetLink'))->render();
+
+        Mail::html($emailBody, function ($message) use ($user) {
+            $message->to($user->email)
+                    ->subject('Reset Password - POS API');
+        });
+
+        return response()->json([
+            'message' => 'Link reset password sudah dikirim ke email'
+        ]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'token' => 'required',
+            'password' => 'required|min:6|confirmed'
+        ]);
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->first();
+
+        if (!$record) {
+            return response()->json([
+                'message' => 'Token tidak ditemukan'
+            ], 400);
+        }
+
+        if (!Hash::check($request->token, $record->token)) {
+            return response()->json([
+                'message' => 'Token tidak valid'
+            ], 400);
+        }
+
+        if (Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
+            return response()->json([
+                'message' => 'Token sudah kadaluarsa'
+            ], 400);
+        }
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User tidak ditemukan'
+            ], 404);
+        }
+
+        if (!in_array($user->role, ['manager', 'developer'])) {
+            return response()->json([
+                'message' => 'Hanya untuk manager/developer'
+            ], 403);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->password)
+        ]);
+
+        DB::table('password_reset_tokens')
+            ->where('email', $request->email)
+            ->delete();
+
+        return response()->json([
+            'message' => 'Password berhasil direset'
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+
+        return response()->json([
+            'message' => 'Logout berhasil'
+        ]);
+    }
+
+    private function storeImageIfUploaded(Request $request): ?string
+    {
+        if (!$request->hasFile('image')) {
+            return null;
+        }
+
+        return $request->file('image')->store('users', 'public');
+    }
+}
