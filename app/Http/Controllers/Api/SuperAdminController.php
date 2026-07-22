@@ -142,6 +142,29 @@ class SuperAdminController extends Controller
             ->take(5)
             ->get(['id', 'name', 'email', 'created_at', 'is_active']);
 
+        // 6. Monthly Revenue (Current Year)
+        $subscriptionsYear = \App\Models\Subscription::with('package')
+            ->where('status', 'active')
+            ->whereYear('created_at', now()->year)
+            ->get();
+
+        $monthlyRevenue = array_fill(1, 12, 0);
+        foreach ($subscriptionsYear as $sub) {
+            if ($sub->package) {
+                $month = (int) $sub->created_at->format('n');
+                $monthlyRevenue[$month] += $sub->package->price;
+            }
+        }
+
+        $monthlyChart = [];
+        $monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+        for ($i = 1; $i <= 12; $i++) {
+            $monthlyChart[] = [
+                'month' => $monthNames[$i - 1],
+                'revenue' => $monthlyRevenue[$i]
+            ];
+        }
+
         return response()->json([
             'data' => [
                 'total_tenants' => $totalTenants,
@@ -149,7 +172,8 @@ class SuperAdminController extends Controller
                 'pending_subscriptions' => $pendingSubscriptions,
                 'total_revenue' => $totalRevenue,
                 'popular_packages' => $popularPackages,
-                'recent_tenants' => $recentTenants
+                'recent_tenants' => $recentTenants,
+                'monthly_chart' => $monthlyChart
             ]
         ]);
     }}
