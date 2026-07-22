@@ -121,7 +121,52 @@ class AuthController extends Controller
             ], 403);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // CEK 2FA
+        if ($user->two_factor_confirmed_at) {
+            // Berikan token dengan hak akses sangat terbatas (hanya untuk verifikasi 2FA)
+            $token = $user->createToken('auth_token_2fa', ['2fa:verify'])->plainTextToken;
+            return response()->json([
+                'message' => '2FA required',
+                'requires_2fa' => true,
+                'token' => $token,
+            ]);
+        }
+
+        $token = $user->createToken('auth_token', ['*'])->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login berhasil',
+            'token' => $token,
+            'shift_id' => null,
+            'user' => $user->load('outlet')->makeVisible('midtrans_server_key')
+        ]);
+    }
+
+    public function verify2fa(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string',
+        ]);
+
+        $user = $request->user();
+
+        // Pastikan token yang dipakai adalah token khusus 2FA
+        if (!$user->currentAccessToken()->can('2fa:verify')) {
+            return response()->json(['message' => 'Invalid token scope atau bukan token 2FA'], 403);
+        }
+
+        $google2fa = app('pragmarx.google2fa');
+        $valid = $google2fa->verifyKey($user->two_factor_secret, $request->code);
+
+        if (!$valid) {
+            return response()->json(['message' => 'Kode Authenticator salah'], 400);
+        }
+
+        // Hapus token sementara
+        $user->currentAccessToken()->delete();
+
+        // Buatkan token asli (hak akses penuh)
+        $token = $user->createToken('auth_token', ['*'])->plainTextToken;
 
         return response()->json([
             'message' => 'Login berhasil',

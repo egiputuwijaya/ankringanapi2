@@ -140,3 +140,10 @@ Schedule::command('app:daily-routine')
     ->name('daily-maintenance')
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('tenant:send-expiry-reminders')
+    ->dailyAt('10:00')
+    ->timezone('Asia/Jakarta')
+    ->name('send-expiry-reminders')
+    ->withoutOverlapping()
+    ->runInBackground();

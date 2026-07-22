@@ -58,6 +58,29 @@ class StationController extends Controller
             'name' => 'required|string|max:255',
         ]);
 
+        // === CEK LIMIT MULTI-STATION BERDASARKAN PAKET ===
+        // Get the manager user from the ownerId
+        $manager = \App\Models\User::find($ownerId);
+        if ($manager) {
+            $activeSubscription = $manager->subscriptions()
+                ->where('status', 'active')
+                ->where('end_date', '>=', now())
+                ->with('package')
+                ->first();
+
+            if (!$activeSubscription || !$activeSubscription->package) {
+                return response()->json(['message' => 'Anda tidak memiliki paket berlangganan aktif. Silakan berlangganan terlebih dahulu.'], 403);
+            }
+
+            if (!$activeSubscription->package->has_multi_station) {
+                // If they don't have multi-station feature, they can only have 1 station
+                $currentStationCount = Station::where('owner_id', $ownerId)->count();
+                if ($currentStationCount >= 1) {
+                    return response()->json(['message' => 'Paket Anda tidak mendukung fitur Multi-Station (Maksimal 1 Station). Silakan upgrade paket Anda untuk menambah Station.'], 403);
+                }
+            }
+        }
+
         $station = Station::create([
             'name' => $request->name,
             'owner_id' => $ownerId,

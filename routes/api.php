@@ -30,7 +30,7 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
     // ================= PUBLIC QR =================
-    Route::prefix('public')->group(function () {
+    Route::prefix('public')->middleware(['active_manager'])->group(function () {
         Route::get('/menu/{token}', [ProductController::class, 'publicMenu'])->name('public.menu');
         Route::post('/order', [OrderController::class, 'publicOrder'])->name('public.order');
 
@@ -69,6 +69,15 @@ Route::prefix('v1')->group(function () {
         Route::get('/top-products', [App\Http\Controllers\ReportController::class, 'publicTopProducts']);
     });
 
+    // ================= SAAS REGISTRATION & WEBHOOK =================
+    Route::prefix('saas')->group(function () {
+        Route::post('/register', [\App\Http\Controllers\Api\SaaSController::class, 'registerManager']);
+        Route::post('/midtrans-callback', [\App\Http\Controllers\Api\SaaSController::class, 'midtransCallback']);
+    });
+
+    // ================= PUBLIC TESTIMONIALS =================
+    Route::get('/testimonials', [\App\Http\Controllers\Api\TestimonialController::class, 'index']);
+
     // ================= AUTH =================
     Route::post('/register', [AuthController::class, 'register'])->name('register');
 
@@ -96,7 +105,7 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'active_manager'])->group(function () {
 
         // Broadcasting routes untuk Reverb
         Broadcast::routes(['middleware' => ['auth:sanctum']]);
@@ -110,6 +119,18 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('/me', [AuthController::class, 'me'])->name('me');
         Route::put('/me', [AuthController::class, 'updateProfile'])->name('me.update');
+        Route::post('/login/2fa-verify', [AuthController::class, 'verify2fa'])->name('login.2fa_verify');
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2FA (GOOGLE AUTHENTICATOR)
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('2fa')->group(function () {
+            Route::post('/setup', [\App\Http\Controllers\Api\TwoFactorController::class, 'setup']);
+            Route::post('/confirm', [\App\Http\Controllers\Api\TwoFactorController::class, 'confirm']);
+            Route::post('/disable', [\App\Http\Controllers\Api\TwoFactorController::class, 'disable']);
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -288,6 +309,26 @@ Route::prefix('v1')->group(function () {
         Route::prefix('reports')->group(function () {
             Route::get('/', [ReportController::class, 'index'])->name('reports.index');
             Route::get('/export', [ReportController::class, 'export'])->name('reports.export');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUPER ADMIN
+        |--------------------------------------------------------------------------
+        */
+
+        Route::prefix('superadmin')->middleware([\App\Http\Middleware\EnsureUserIsDeveloper::class])->group(function () {
+            Route::get('/dashboard', [\App\Http\Controllers\Api\SuperAdminController::class, 'dashboardStats']);
+            Route::get('/tenants', [\App\Http\Controllers\Api\SuperAdminController::class, 'getTenants']);
+            Route::get('/packages', [\App\Http\Controllers\Api\SuperAdminController::class, 'getPackages']);
+            Route::post('/packages', [\App\Http\Controllers\Api\SuperAdminController::class, 'createPackage']);
+            Route::put('/packages/{id}', [\App\Http\Controllers\Api\SuperAdminController::class, 'updatePackage']);
+            Route::put('/packages/{id}/archive', [\App\Http\Controllers\Api\SuperAdminController::class, 'archivePackage']);
+            Route::post('/tenants/{managerId}/subscribe', [\App\Http\Controllers\Api\SuperAdminController::class, 'subscribeTenant']);
+            Route::put('/tenants/{managerId}/block', [\App\Http\Controllers\Api\SuperAdminController::class, 'blockTenant']);
+            Route::put('/tenants/{managerId}/unblock', [\App\Http\Controllers\Api\SuperAdminController::class, 'unblockTenant']);
+
+            Route::apiResource('testimonials', \App\Http\Controllers\Api\TestimonialController::class);
         });
     });
 });

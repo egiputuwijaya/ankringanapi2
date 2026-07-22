@@ -240,6 +240,17 @@ class ProductController extends Controller
             return response()->json(['message' => 'Owner tidak ditemukan'], 400);
         }
 
+        if ($user->role === 'manager') {
+            $latestSub = $user->subscriptions()->with('package')->orderBy('end_date', 'desc')->first();
+            if ($latestSub && $latestSub->status === 'active' && $latestSub->package) {
+                $maxProducts = $latestSub->package->max_products;
+                $currentProducts = \App\Models\Product::where('owner_id', $user->id)->count();
+                if ($currentProducts >= $maxProducts) {
+                    return response()->json(['message' => 'Anda telah mencapai batas maksimal menu ('.$maxProducts.') sesuai paket langganan Anda.'], 403);
+                }
+            }
+        }
+
         $request->validate([
             'category_id' => [
                 'required',

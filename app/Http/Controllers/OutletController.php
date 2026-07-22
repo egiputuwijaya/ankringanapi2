@@ -49,7 +49,6 @@ class OutletController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        // validasi (Tambahan user_id untuk input dari Developer)
         $request->validate([
             'name' => 'required|string|max:255',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
@@ -57,6 +56,17 @@ class OutletController extends Controller
             'address_outlet' => 'nullable|string|max:255',
             'user_id' => 'nullable|exists:users,id', // Diisi oleh Developer
         ]);
+
+        if ($user->role === 'manager') {
+            $latestSub = $user->subscriptions()->with('package')->orderBy('end_date', 'desc')->first();
+            if ($latestSub && $latestSub->status === 'active' && $latestSub->package) {
+                $maxOutlets = $latestSub->package->max_outlets;
+                $currentOutlets = \App\Models\Outlet::where('owner_id', $user->id)->count();
+                if ($currentOutlets >= $maxOutlets) {
+                    return response()->json(['message' => 'Anda telah mencapai batas maksimal outlet ('.$maxOutlets.') sesuai paket langganan Anda.'], 403);
+                }
+            }
+        }
 
         $imagePath = null; // Set default null agar aman
         if ($request->hasFile('image')) {

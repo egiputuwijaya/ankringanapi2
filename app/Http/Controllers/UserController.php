@@ -85,6 +85,29 @@ class UserController extends Controller
             if (!$ownsOutlet) {
                 return response()->json(['message' => 'Outlet tujuan tidak valid atau bukan milik Anda.'], 403);
             }
+
+            // === CEK LIMIT KARYAWAN BERDASARKAN PAKET ===
+            $activeSubscription = $authUser->subscriptions()
+                ->where('status', 'active')
+                ->where('end_date', '>=', now())
+                ->with('package')
+                ->first();
+
+            if (!$activeSubscription || !$activeSubscription->package) {
+                return response()->json(['message' => 'Anda tidak memiliki paket berlangganan aktif. Silakan berlangganan terlebih dahulu.'], 403);
+            }
+
+            $maxUsersAllowed = $activeSubscription->package->max_users;
+            
+            // Hitung Karyawan (di semua outlet milik manager ini)
+            $managerOutletIds = Outlet::where('owner_id', $authUser->id)->pluck('id');
+            $currentKaryawanCount = User::where('role', 'karyawan')
+                ->whereIn('outlet_id', $managerOutletIds)
+                ->count();
+
+            if ($currentKaryawanCount >= $maxUsersAllowed) {
+                return response()->json(['message' => 'Batas maksimal Karyawan pada paket Anda telah tercapai (Maks: ' . $maxUsersAllowed . ' Karyawan). Silakan upgrade paket Anda untuk menambah Karyawan.'], 403);
+            }
         }
 
         $request->validate([

@@ -32,6 +32,8 @@ class User extends Authenticatable
         'outlet_id',
         'is_active',
         'midtrans_server_key',
+        'two_factor_secret',
+        'two_factor_confirmed_at',
         // 'role' SENGAJA TIDAK dimasukkan di sini. Field ini paling sensitif
         // untuk privilege escalation - kalau lewat $fillable, request mentah
         // yang lolos ke create()/update()/fill() bisa menyelundupkan
@@ -51,6 +53,7 @@ class User extends Authenticatable
         'remember_token',
         'pin',
         'midtrans_server_key',
+        'two_factor_secret',
     ];
 
     /**
@@ -62,6 +65,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'two_factor_confirmed_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
         ];
@@ -122,5 +126,10 @@ class User extends Authenticatable
     public function shiftKaryawans()
     {
         return $this->hasMany(ShiftKaryawan::class);
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(Subscription::class);
     }
 }
