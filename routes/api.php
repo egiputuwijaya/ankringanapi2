@@ -71,6 +71,7 @@ Route::prefix('v1')->group(function () {
 
     // ================= SAAS REGISTRATION & WEBHOOK =================
     Route::prefix('saas')->group(function () {
+        Route::get('/packages', [\App\Http\Controllers\Api\SuperAdminController::class, 'getPackages']);
         Route::post('/register', [\App\Http\Controllers\Api\SaaSController::class, 'registerManager']);
         Route::post('/midtrans-callback', [\App\Http\Controllers\Api\SaaSController::class, 'midtransCallback']);
     });
