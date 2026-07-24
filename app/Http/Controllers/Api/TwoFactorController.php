@@ -75,12 +75,20 @@ class TwoFactorController extends Controller
     {
         $request->validate([
             'password' => 'required|string',
+            'code' => 'required|string',
         ]);
 
         $user = $request->user();
 
         if (!\Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
             return response()->json(['message' => 'Password salah.'], 400);
+        }
+
+        $google2fa = app('pragmarx.google2fa');
+        $valid = $google2fa->verifyKey($user->two_factor_secret, $request->code);
+
+        if (!$valid) {
+            return response()->json(['message' => 'Kode OTP salah atau sudah kedaluwarsa.'], 400);
         }
 
         $user->two_factor_secret = null;
