@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 
 class TwoFactorController extends Controller
 {
@@ -25,8 +29,16 @@ class TwoFactorController extends Controller
             $user->two_factor_secret
         );
 
+        $renderer = new ImageRenderer(
+            new RendererStyle(200),
+            new SvgImageBackEnd()
+        );
+        $writer = new Writer($renderer);
+        $qrCodeSvg = $writer->writeString($qrCodeUrl);
+
         return response()->json([
             'secret' => $user->two_factor_secret,
+            'qr_code_svg' => $qrCodeSvg,
             'qr_code_url' => $qrCodeUrl, // otpauth:// url
             'message' => 'Silakan scan QR ini di aplikasi Google Authenticator Anda.'
         ]);
