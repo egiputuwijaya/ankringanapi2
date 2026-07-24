@@ -173,5 +173,4 @@ class SuperAdminController extends Controller
 
         return response()->json(['message' => 'Tenant berhasil dibuka blokirnya. Akses layanan dipulihkan.']);
     }
-    }
 }
