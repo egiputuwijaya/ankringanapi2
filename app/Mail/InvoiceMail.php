@@ -9,25 +9,22 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 use App\Models\User;
+use App\Models\Package;
 
-class TenantActivatedMail extends Mailable
+class InvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $user;
     public $package;
-    public $paymentMethod;
-    public $amount;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(User $user, $package, $paymentMethod, $amount)
+    public function __construct(User $user, Package $package)
     {
         $this->user = $user;
         $this->package = $package;
-        $this->paymentMethod = $paymentMethod;
-        $this->amount = $amount;
     }
 
     /**
@@ -36,7 +33,7 @@ class TenantActivatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Paket Langganan Aktif',
+            subject: 'Tagihan Pembayaran Paket ' . $this->package->name,
         );
     }
 
@@ -46,7 +43,7 @@ class TenantActivatedMail extends Mailable
     public function content(): Content
     {
         return new Content(
-            view: 'emails.tenant-activated',
+            view: 'emails.invoice',
         );
     }
 

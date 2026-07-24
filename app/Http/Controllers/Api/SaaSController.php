@@ -86,6 +86,13 @@ class SaaSController extends Controller
 
             DB::commit();
 
+            // Send Invoice Email
+            try {
+                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\InvoiceMail($user, $package));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send invoice email: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'message' => 'Registrasi berhasil, silakan selesaikan pembayaran langganan',
                 'token' => $token,
@@ -119,7 +126,9 @@ class SaaSController extends Controller
                     try {
                         $user = $subscription->user;
                         if ($user && $user->email) {
-                            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\TenantActivatedMail($user));
+                            $paymentType = $request->payment_type ?? 'unknown';
+                            $grossAmount = $request->gross_amount ?? $package->price;
+                            \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\TenantActivatedMail($user, $package, $paymentType, $grossAmount));
                         }
                     } catch (\Exception $e) {
                         \Illuminate\Support\Facades\Log::error('Failed to send activation email: ' . $e->getMessage());
