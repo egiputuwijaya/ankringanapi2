@@ -120,6 +120,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('/me', [AuthController::class, 'me'])->name('me');
         Route::put('/me', [AuthController::class, 'updateProfile'])->name('me.update');
+        Route::put('/me/password', [AuthController::class, 'changePassword'])->name('me.password.update');
         Route::post('/login/2fa-verify', [AuthController::class, 'verify2fa'])->name('login.2fa_verify');
 
         /*

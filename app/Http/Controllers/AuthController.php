@@ -246,6 +246,39 @@ class AuthController extends Controller
         ]);
     }
 
+    public function changePassword(Request $request)
+    {
+        $user = $request->user();
+
+        $rules = [
+            'current_password' => 'required|string',
+            'password' => 'required|string|min:6|confirmed',
+        ];
+
+        if ($user->two_factor_confirmed_at) {
+            $rules['otp'] = 'required|string';
+        }
+
+        $request->validate($rules);
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Password lama salah.'], 400);
+        }
+
+        if ($user->two_factor_confirmed_at) {
+            $google2fa = app('pragmarx.google2fa');
+            $valid = $google2fa->verifyKey($user->two_factor_secret, $request->otp);
+            if (!$valid) {
+                return response()->json(['message' => 'Kode OTP salah atau sudah kedaluwarsa.'], 400);
+            }
+        }
+
+        $user->password = \Illuminate\Support\Facades\Hash::make($request->password);
+        $user->save();
+
+        return response()->json(['message' => 'Password berhasil diubah.']);
+    }
+
     public function updateProfile(Request $request)
     {
         $user = $request->user();
