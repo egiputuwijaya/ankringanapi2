@@ -39,6 +39,8 @@ class Order extends Model
         'user_id',
         'table_id',
         'customer_name',
+        'customer_email',
+        'receipt_type',
         'invoice_number',
         'payment_method',
 

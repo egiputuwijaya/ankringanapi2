@@ -51,6 +51,8 @@ class OrderService
                 'user_id' => $user->id,
                 'table_id' => $table->id,
                 'customer_name' => $validated['customer_name'] ?? null,
+                'customer_email' => $validated['customer_email'] ?? null,
+                'receipt_type' => $validated['receipt_type'] ?? 'print',
                 'invoice_number' => $invoice,
                 'status' => Order::STATUS_PAID,
                 'total_price' => 0,
@@ -134,6 +136,8 @@ class OrderService
                 'user_id' => $user->id,
                 'table_id' => $table->id,
                 'customer_name' => $validated['customer_name'] ?? null,
+                'customer_email' => $validated['customer_email'] ?? null,
+                'receipt_type' => $validated['receipt_type'] ?? 'print',
                 'invoice_number' => $invoice,
                 'status' => Order::STATUS_PENDING, // PENDING karena menunggu pembayaran Midtrans
                 'total_price' => 0,
@@ -191,6 +195,8 @@ class OrderService
                 'discount_amount' => $validated['discount_amount'] ?? 0,
                 'total_price' => $validated['total_price'] ?? 0,
                 'customer_name' => $validated['customer_name'] ?? null,
+                'customer_email' => $validated['customer_email'] ?? null,
+                'receipt_type' => $validated['receipt_type'] ?? 'print',
                 'status' => 'pending',
                 'manual_discount_type' => $validated['manual_discount_type'] ?? null,
                 'manual_discount_value' => $validated['manual_discount_value'] ?? 0,
@@ -727,6 +733,10 @@ class OrderService
                 'order_items_summary' => $orderItemsSummary,
             ]
         );
+
+        if ($order->receipt_type === 'email' && !empty($order->customer_email)) {
+            \Illuminate\Support\Facades\Mail::to($order->customer_email)->send(new \App\Mail\ReceiptMail($order));
+        }
     }
 
     private function generateInvoiceNumber(int $outletId): string

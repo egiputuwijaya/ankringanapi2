@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Outlet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 
 class OutletController extends Controller
 {
@@ -228,6 +229,9 @@ class OutletController extends Controller
         // Gunakan sync() bawaan Laravel. Ini otomatis menghapus menu yang tidak dicentang
         // dan menambahkan/mengupdate menu yang dicentang.
         $outlet->products()->sync($syncData);
+
+        // Hapus cache menu outlet agar perubahan langsung terlihat di POS QR
+        Cache::forget("menu_outlet_{$outlet->id}");
 
         return response()->json([
             'success' => true,
