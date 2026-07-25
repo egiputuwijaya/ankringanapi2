@@ -1,88 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <style>
-        body { font-family: 'Courier New', Courier, monospace; line-height: 1.4; color: #000; background-color: #f9f9f9; padding: 20px; }
-        .receipt-container { background-color: #fff; padding: 20px; max-width: 350px; margin: 0 auto; border: 1px solid #ddd; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .font-bold { font-weight: bold; }
-        .divider { border-top: 1px dashed #000; margin: 10px 0; }
-        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
-        .item-name { flex-basis: 50%; }
-        .item-qty { flex-basis: 15%; text-align: center; }
-        .item-price { flex-basis: 35%; text-align: right; }
-        .totals-table { width: 100%; margin-top: 10px; }
-        .totals-table td { padding: 2px 0; }
-    </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body>
-    <div class="receipt-container">
-        <div class="text-center font-bold" style="font-size: 1.2em; margin-bottom: 5px;">
-            {{ $order->outlet->name ?? 'POS Store' }}
-        </div>
-        <div class="text-center" style="font-size: 0.9em; margin-bottom: 10px;">
-            {{ $order->outlet->address ?? '' }}<br>
-            {{ $order->outlet->phone ?? '' }}
-        </div>
+<body style="background-color: #fdfbf6; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0;">
+
+    <div style="background-color: #fffaf0; border: 1px solid #f2e2c5; border-radius: 12px; padding: 24px; max-width: 400px; margin: 0 auto; box-sizing: border-box;">
         
-        <div class="divider"></div>
-        
-        <div style="font-size: 0.85em; margin-bottom: 10px;">
-            <div>No. Pesanan: {{ $order->invoice_number ?? $order->id }}</div>
-            <div>Tanggal: {{ $order->created_at->format('d/m/Y H:i') }}</div>
-            <div>Pelanggan: {{ $order->customer_name ?? 'Guest' }}</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div style="font-size: 0.9em;">
-            <div class="item-row font-bold">
-                <div class="item-name">Item</div>
-                <div class="item-qty">Qty</div>
-                <div class="item-price">Harga</div>
-            </div>
-            
-            @foreach($order->items as $item)
-            <div class="item-row">
-                <div class="item-name">{{ $item->product_name ?? ($item->product->name ?? 'Produk') }}</div>
-                <div class="item-qty">{{ $item->qty }}</div>
-                <div class="item-price">{{ number_format($item->price * $item->qty, 0, ',', '.') }}</div>
-            </div>
-            @endforeach
-        </div>
-
-        <div class="divider"></div>
-
-        <table class="totals-table" style="font-size: 0.9em;">
+        <!-- Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
-                <td>Subtotal</td>
-                <td class="text-right">{{ number_format($order->subtotal_price, 0, ',', '.') }}</td>
+                <td style="font-weight: 900; font-size: 22px; color: #5c3a21;">POS</td>
+                <td align="right"><span style="background-color: #dcf3df; color: #2d7346; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px;">PAID</span></td>
+            </tr>
+            <tr>
+                <td colspan="2" style="color: #7b7167; font-size: 13px; padding-top: 5px; font-family: monospace;">{{ $order->invoice_number ?? $order->id }}</td>
+            </tr>
+        </table>
+
+        <!-- Divider -->
+        <div style="border-top: 1px solid #f2e2c5; margin: 15px 0;"></div>
+
+        <!-- Order Details -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; color: #7b7167; line-height: 2;">
+            <tr>
+                <td>Atas Nama</td>
+                <td align="right" style="color: #4a3424; font-weight: 600;">{{ $order->customer_name ?? 'Guest' }}</td>
+            </tr>
+            <tr>
+                <td>Tanggal</td>
+                <td align="right" style="color: #4a3424; font-weight: 600;">{{ $order->created_at->format('d/m/Y, H.i.s') }}</td>
+            </tr>
+            <tr>
+                <td>Metode Bayar</td>
+                <td align="right" style="color: #4a3424; font-weight: 600;">Online ({{ strtoupper($order->payment_method ?? 'QRIS') }})</td>
+            </tr>
+        </table>
+
+        <!-- Menu Title -->
+        <div style="font-weight: 800; font-size: 11px; color: #9c8e81; margin-top: 24px; margin-bottom: 12px; letter-spacing: 0.5px;">RINCIAN MENU</div>
+
+        <!-- Items List -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 15px; color: #4a3424;">
+            @foreach($order->items as $item)
+            <tr>
+                <td width="30" style="font-weight: bold; vertical-align: top; padding-bottom: 10px;">{{ $item->qty }}x</td>
+                <td style="font-weight: 600; vertical-align: top; padding-bottom: 10px;">{{ $item->product_name ?? ($item->product->name ?? 'Produk') }}</td>
+                <td align="right" style="vertical-align: top; font-family: monospace; padding-bottom: 10px;">Rp {{ number_format($item->price * $item->qty, 0, ',', '.') }}</td>
+            </tr>
+            @endforeach
+        </table>
+
+        <!-- Dashed Divider -->
+        <div style="border-top: 1px dashed #d68735; margin: 8px 0 16px 0;"></div>
+
+        <!-- Totals -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 14px; color: #7b7167;">
+            <tr>
+                <td style="padding-bottom: 12px;">Subtotal</td>
+                <td align="right" style="padding-bottom: 12px; font-family: monospace;">Rp {{ number_format($order->subtotal_price, 0, ',', '.') }}</td>
             </tr>
             @if($order->discount_amount > 0)
             <tr>
-                <td>Diskon</td>
-                <td class="text-right">-{{ number_format($order->discount_amount, 0, ',', '.') }}</td>
+                <td style="padding-bottom: 12px;">Diskon</td>
+                <td align="right" style="padding-bottom: 12px; font-family: monospace;">-Rp {{ number_format($order->discount_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
             @if($order->tax_amount > 0)
             <tr>
-                <td>Pajak</td>
-                <td class="text-right">{{ number_format($order->tax_amount, 0, ',', '.') }}</td>
+                <td style="padding-bottom: 12px;">Pajak</td>
+                <td align="right" style="padding-bottom: 12px; font-family: monospace;">Rp {{ number_format($order->tax_amount, 0, ',', '.') }}</td>
             </tr>
             @endif
-            <tr class="font-bold" style="font-size: 1.1em;">
-                <td style="padding-top: 10px;">TOTAL</td>
-                <td class="text-right" style="padding-top: 10px;">{{ number_format($order->total_price, 0, ',', '.') }}</td>
+            <tr>
+                <td style="font-weight: 900; font-size: 16px; color: #5c3a21; padding-top: 5px;">TOTAL AKHIR</td>
+                <td align="right" style="font-weight: 900; font-size: 18px; color: #a45a16; padding-top: 5px; font-family: monospace;">Rp {{ number_format($order->total_price, 0, ',', '.') }}</td>
             </tr>
         </table>
 
-        <div class="divider" style="margin-top: 15px;"></div>
+        <!-- Dashed Divider -->
+        <div style="border-top: 1px dashed #d68735; margin: 16px 0;"></div>
 
-        <div class="text-center" style="font-size: 0.85em; margin-top: 15px;">
-            Terima kasih atas kunjungan Anda!<br>
-            Harap simpan struk ini sebagai bukti pembayaran yang sah.
+        <!-- Footer -->
+        <div style="text-align: center; color: #d68735; font-size: 12px; line-height: 1.6; margin-top: 20px;">
+            Terima kasih telah berkunjung!<br>
+            Sudah termasuk Pajak & Layanan
         </div>
+
     </div>
+
 </body>
 </html>
