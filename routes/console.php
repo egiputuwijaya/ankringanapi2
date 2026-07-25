@@ -147,3 +147,7 @@ Schedule::command('tenant:send-expiry-reminders')
     ->name('send-expiry-reminders')
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('queue:work --stop-when-empty')
+    ->everyMinute()
+    ->withoutOverlapping();
