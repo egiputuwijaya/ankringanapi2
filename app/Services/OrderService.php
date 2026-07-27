@@ -20,7 +20,7 @@ use App\Events\PaymentPaid;
 
 class OrderService
 {
-    public function createCheckoutOrder(array $validated, ?int $outletId = null): array
+    public function createCheckoutOrder(array $validated, ?string $outletId = null): array
     {
         $user = $this->currentUser();
         $outletId ??= $validated['outlet_id'] ?? null;
@@ -103,7 +103,7 @@ class OrderService
     /**
      * Create order untuk Midtrans payment (status: PENDING)
      */
-    public function createCheckoutOrderForMidtrans(array $validated, ?int $outletId = null): array
+    public function createCheckoutOrderForMidtrans(array $validated, ?string $outletId = null): array
     {
         $user = $this->currentUser();
         $outletId ??= $validated['outlet_id'] ?? null;
@@ -748,7 +748,7 @@ class OrderService
         }
     }
 
-    private function generateInvoiceNumber(int $outletId): string
+    private function generateInvoiceNumber(string $outletId): string
     {
         $date = now()->format('Ymd');
 
@@ -776,7 +776,7 @@ class OrderService
         return "INV-{$date}-{$sequence}";
     }
 
-    private function generateInvoiceNumberWithRetry(int $outletId): string
+    private function generateInvoiceNumberWithRetry(string $outletId): string
     {
         $maxRetry = 5;
         $attempt = 0;
@@ -795,7 +795,7 @@ class OrderService
         throw new \Exception('Gagal generate invoice unik, coba lagi');
     }
 
-    private function canAccessOutlet(int $outletId): bool
+    private function canAccessOutlet(string $outletId): bool
     {
         $user = $this->currentUser();
         if ($user->role === 'developer') return true;

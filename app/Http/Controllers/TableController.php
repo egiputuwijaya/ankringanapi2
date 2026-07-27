@@ -14,7 +14,7 @@ class TableController extends Controller
      * Tanpa ini, siapa pun yang authenticated bisa membuat/mengubah/menghapus
      * meja milik outlet siapa pun hanya dengan menebak outlet_id/table id.
      */
-    private function authorizeOutletId(?int $outletId): void
+    private function authorizeOutletId(?string $outletId): void
     {
         $user = auth()->user();
 

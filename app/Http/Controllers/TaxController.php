@@ -150,7 +150,7 @@ class TaxController extends Controller
      * tempatnya bekerja). Mengikuti pola yang sama dengan controller lain
      * (OutletController::authorizeOutlet, TableController::authorizeOutletId).
      */
-    private function authorizeOutletId(?int $outletId): void
+    private function authorizeOutletId(?string $outletId): void
     {
         $user = auth()->user();
 

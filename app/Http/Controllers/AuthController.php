@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Mail;
 class AuthController extends Controller
 {
 // Mengambil data Shift aktif berdasarkan jam DAN tanggal saat ini
-    private function getActiveShift(User $user, int $outletId)
+    private function getActiveShift(User $user, string $outletId)
     {
         $currentDate = now()->format('Y-m-d');
         $currentTime = now()->format('H:i:s');
