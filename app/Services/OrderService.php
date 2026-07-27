@@ -1316,8 +1316,19 @@ class OrderService
 
                 $this->syncHistoryTransaction($order->fresh());
 
-                $broadcastOrder = $order->fresh()->load(['items.product', 'table', 'payments', 'discount']);
+                // Auto-accept order for successful QRIS payment
+                $acceptance = \App\Models\OrderAcceptance::firstOrCreate(
+                    ['order_id' => $order->id, 'scope' => 'cashier'],
+                    [
+                        'accepted_by' => null,
+                        'accepted_at' => now(),
+                        'printed_at' => now(),
+                    ]
+                );
+
+                $broadcastOrder = $order->fresh()->load(['items.product', 'table', 'payments', 'discount', 'latestAcceptance']);
                 event(new PaymentPaid($broadcastOrder));
+                event(new \App\Events\OrderAccepted($broadcastOrder, 'cashier', null));
                 event(new OrderUpdated($broadcastOrder));
             } elseif (in_array($data['transaction_status'] ?? '', ['cancel', 'deny', 'expire'], true)) {
                 $order->decrementDiscountUsage();
