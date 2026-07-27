@@ -87,19 +87,7 @@ class OrderController extends Controller
         $query = Order::with(['items.product', 'table', 'user', 'outlet', 'latestAcceptance']);
 
         if ($request->filled('status')) {
-            if ($request->status === Order::STATUS_PENDING) {
-                $query->where(function ($q) {
-                    $q->where('status', Order::STATUS_PENDING)
-                        ->orWhere(function ($subQ) {
-                            $subQ->where('status', Order::STATUS_PAID)
-                               ->whereNull('user_id')
-                               ->where('payment_method', '!=', 'cash')
-                               ->doesntHave('latestAcceptance');
-                        });
-                });
-            } else {
-                $query->where('status', $request->status);
-            }
+            $query->where('status', $request->status);
         }
 
         if ($user->role === 'karyawan') {
