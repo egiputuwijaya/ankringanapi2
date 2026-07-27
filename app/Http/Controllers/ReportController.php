@@ -429,9 +429,9 @@ class ReportController extends Controller
         }
         $allowedOutletIds = $outletsQuery->pluck('id');
 
-        $trxQuery = HistoryTransaction::where('status', 'paid')
-            ->whereIn('outlet_id', $allowedOutletIds)
-            ->whereBetween('paid_at', [$startDate, $endDate]);
+        $trxQuery = HistoryTransaction::where('history_transactions.status', 'paid')
+            ->whereIn('history_transactions.outlet_id', $allowedOutletIds)
+            ->whereBetween('history_transactions.paid_at', [$startDate, $endDate]);
 
         $outletName = $outletId ? Outlet::find($outletId)?->name ?? 'Semua Cabang' : 'Semua Cabang';
         $exportData = [];
@@ -500,12 +500,12 @@ class ReportController extends Controller
                 ->orderByDesc('sold')->get();
         }
         elseif ($reportType === 'shifts') {
-            $exportData = ShiftKaryawan::whereIn('outlet_id', $allowedOutletIds)
+            $exportData = ShiftKaryawan::whereIn('shift_karyawans.outlet_id', $allowedOutletIds)
                 ->leftJoin('users', 'shift_karyawans.user_id', '=', 'users.id')
-                ->whereNotNull('ended_at')
-                ->whereBetween('ended_at', [$startDate, $endDate])
-                ->selectRaw('users.name as cashier, shift_karyawans.started_at, shift_karyawans.ended_at, opening_balance, closing_balance_system, closing_balance_actual, difference')
-                ->orderByDesc('ended_at')->get();
+                ->whereNotNull('shift_karyawans.ended_at')
+                ->whereBetween('shift_karyawans.ended_at', [$startDate, $endDate])
+                ->selectRaw('users.name as cashier, shift_karyawans.started_at, shift_karyawans.ended_at, shift_karyawans.opening_balance, shift_karyawans.closing_balance_system, shift_karyawans.closing_balance_actual, shift_karyawans.difference')
+                ->orderByDesc('shift_karyawans.ended_at')->get();
         }
         elseif ($reportType === 'staff') {
             $exportData = (clone $trxQuery)
