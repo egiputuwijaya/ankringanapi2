@@ -254,6 +254,7 @@ class OrderController extends Controller
         $validated = $request->validate([
             'outlet_id' => 'required|exists:outlets,id',
             'table_id' => 'required|exists:tables,id',
+            'order_type' => 'nullable|in:dine_in',
             'customer_name' => 'nullable|string|max:100',
             'customer_email' => 'nullable|email|max:255',
             'receipt_type' => 'nullable|in:print,email,none',
@@ -536,7 +537,8 @@ class OrderController extends Controller
 
         $validated = $request->validate([
             'outlet_id' => 'nullable|exists:outlets,id',
-            'table_id' => 'required|exists:tables,id',
+            'table_id' => 'nullable|exists:tables,id',
+            'order_type' => 'nullable|in:dine_in,take_away',
             'customer_name' => 'nullable|string|max:100',
             'customer_email' => 'nullable|email|max:255',
             'receipt_type' => 'nullable|in:print,email,none',

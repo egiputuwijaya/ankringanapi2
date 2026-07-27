@@ -42,6 +42,11 @@ class Product extends Model
             ->withTimestamps();
     }
 
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Discount Accessor Cache

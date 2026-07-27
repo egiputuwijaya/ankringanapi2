@@ -15,6 +15,7 @@ class Tax extends Model
         'rate',
         'type',
         'outlet_id',
+        'apply_to',
         'active',
     ];
 

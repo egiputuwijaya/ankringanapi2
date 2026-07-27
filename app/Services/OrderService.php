@@ -36,9 +36,12 @@ class OrderService
             throw new \Exception('Forbidden: Anda tidak memiliki akses ke Cabang ini.');
         }
 
-        $table = Table::where('id', $validated['table_id'])
-            ->where('outlet_id', $outlet->id)
-            ->firstOrFail();
+        $table = null;
+        if (!empty($validated['table_id'])) {
+            $table = Table::where('id', $validated['table_id'])
+                ->where('outlet_id', $outlet->id)
+                ->firstOrFail();
+        }
 
         DB::beginTransaction();
 
@@ -49,7 +52,8 @@ class OrderService
             $order = Order::create([
                 'outlet_id' => $outlet->id,
                 'user_id' => $user->id,
-                'table_id' => $table->id,
+                'table_id' => $table?->id,
+                'order_type' => $validated['order_type'] ?? 'dine_in',
                 'customer_name' => $validated['customer_name'] ?? null,
                 'customer_email' => $validated['customer_email'] ?? null,
                 'receipt_type' => $validated['receipt_type'] ?? 'print',
@@ -76,7 +80,7 @@ class OrderService
 
             $this->createPayment($order, $amountPaid, $validated['payment_method']);
             $this->storeHistoryTransaction($order);
-            $table->update(['status' => 'available']);
+            $table?->update(['status' => 'available']);
 
             DB::commit();
 
@@ -118,10 +122,13 @@ class OrderService
         DB::beginTransaction();
 
         try {
-            $table = Table::where('id', $validated['table_id'])
-                ->where('outlet_id', $outlet->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+            $table = null;
+            if (!empty($validated['table_id'])) {
+                $table = Table::where('id', $validated['table_id'])
+                    ->where('outlet_id', $outlet->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            }
 
             $invoice = $this->generateInvoiceNumberWithRetry($outlet->id);
 
@@ -134,7 +141,8 @@ class OrderService
             $order = Order::create([
                 'outlet_id' => $outlet->id,
                 'user_id' => $user->id,
-                'table_id' => $table->id,
+                'table_id' => $table?->id,
+                'order_type' => $validated['order_type'] ?? 'dine_in',
                 'customer_name' => $validated['customer_name'] ?? null,
                 'customer_email' => $validated['customer_email'] ?? null,
                 'receipt_type' => $validated['receipt_type'] ?? 'print',
@@ -187,6 +195,7 @@ class OrderService
             $order = Order::create([
                 'outlet_id' => $validated['outlet_id'],
                 'table_id' => $validated['table_id'],
+                'order_type' => $validated['order_type'] ?? 'dine_in',
                 'user_id' => null,
                 'shift_id' => null,
                 'invoice_number' => null,

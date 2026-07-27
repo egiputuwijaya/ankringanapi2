@@ -38,6 +38,7 @@ class Order extends Model
         'outlet_id',
         'user_id',
         'table_id',
+        'order_type',
         'customer_name',
         'customer_email',
         'receipt_type',

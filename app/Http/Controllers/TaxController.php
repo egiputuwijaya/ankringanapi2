@@ -62,6 +62,7 @@ class TaxController extends Controller
             'type' => ['required', 'in:percentage,fixed'],
             'outlet_id' => ['required', 'exists:outlets,id'],
             'active' => ['boolean'],
+            'apply_to' => ['sometimes', 'in:all,dine_in,take_away'],
         ], [
             'name.unique' => 'Pajak / Biaya dengan nama ini sudah ada di cabang tersebut.'
         ]);
@@ -115,6 +116,7 @@ class TaxController extends Controller
             'type' => ['sometimes', 'in:percentage,fixed'],
             'outlet_id' => ['sometimes', 'required', 'exists:outlets,id'],
             'active' => ['sometimes', 'boolean'],
+            'apply_to' => ['sometimes', 'in:all,dine_in,take_away'],
         ], [
             'name.unique' => 'Pajak / Biaya dengan nama ini sudah ada di cabang tersebut.'
         ]);

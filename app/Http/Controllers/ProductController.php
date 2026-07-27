@@ -138,6 +138,7 @@ class ProductController extends Controller
                     'products.image',
                 ])
                 ->with(['category:id,name'])
+                ->withSum('orderItems as sold_count', 'qty')
                 ->orderByDesc('products.created_at');
 
             if ($request->filled('category_id')) {
@@ -159,6 +160,8 @@ class ProductController extends Controller
                 $product->price = (int) $product->pivot->price;
                 $product->stock = (int) $product->pivot->stock;
                 $product->is_active = (bool) $product->pivot->is_active;
+                $product->sold_count = (int) $product->sold_count;
+                $product->is_bestseller = $product->sold_count >= 10;
                 unset($product->pivot);
 
                 return $product;
