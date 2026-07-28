@@ -27,7 +27,7 @@ class ScheduleController extends Controller
         if (isset($validated['outlet_id']) && $user->role !== 'developer') {
             $authorized = $user->role === 'manager'
                 ? Outlet::where('id', $validated['outlet_id'])->where('owner_id', $user->id)->exists()
-                : (int) $user->outlet_id === (int) $validated['outlet_id'];
+                : (string) $user->outlet_id === (string) $validated['outlet_id'];
 
             if (!$authorized) {
                 return response()->json(['message' => 'Akses ditolak.'], 403);

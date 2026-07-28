@@ -800,7 +800,7 @@ class OrderService
         $user = $this->currentUser();
         if ($user->role === 'developer') return true;
         if ($user->role === 'manager') return Outlet::where('id', $outletId)->where('owner_id', $user->id)->exists();
-        return (int) $user->outlet_id === $outletId;
+        return (string) $user->outlet_id === (string) $outletId;
     }
 
     private function canAccessOrder(Order $order): bool

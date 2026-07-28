@@ -187,7 +187,7 @@ class OrderController extends Controller
         $user = auth()->user();
         if ($user->role === 'developer') return true;
         if ($user->role === 'manager') return \App\Models\Outlet::where('id', $order->outlet_id)->where('owner_id', $user->id)->exists();
-        return (int) $user->outlet_id === (int) $order->outlet_id;
+        return (string) $user->outlet_id === (string) $order->outlet_id;
     }
 
     /**
@@ -965,7 +965,7 @@ class OrderController extends Controller
             }
             return;
         }
-        if ((int) $user->outlet_id !== (int) $order->outlet_id) {
+        if ((string) $user->outlet_id !== (string) $order->outlet_id) {
             abort(403);
         }
     }

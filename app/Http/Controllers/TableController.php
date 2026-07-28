@@ -23,7 +23,7 @@ class TableController extends Controller
         }
 
         if ($user->role === 'karyawan') {
-            if ((int) $user->outlet_id !== (int) $outletId) {
+            if ((string) $user->outlet_id !== (string) $outletId) {
                 abort(403, 'Forbidden');
             }
             return;

@@ -34,7 +34,7 @@ class OrderAcceptanceController extends Controller
         if ($user->role !== 'developer') {
             $authorized = $user->role === 'manager'
                 ? \App\Models\Outlet::where('id', $order->outlet_id)->where('owner_id', $user->id)->exists()
-                : (int) $user->outlet_id === (int) $order->outlet_id;
+                : (string) $user->outlet_id === (string) $order->outlet_id;
 
             if (!$authorized) {
                 return response()->json(['message' => 'Forbidden'], 403);

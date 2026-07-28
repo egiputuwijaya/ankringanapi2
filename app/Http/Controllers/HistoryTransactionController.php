@@ -194,7 +194,7 @@ class HistoryTransactionController extends Controller
         $user = auth()->user();
 
         if ($user->isKaryawan()) {
-            if ((int) $historyTransaction->outlet_id !== (int) $user->outlet_id) {
+            if ((string) $historyTransaction->outlet_id !== (string) $user->outlet_id) {
                 return response()->json(['message' => 'Forbidden'], 403);
             }
 

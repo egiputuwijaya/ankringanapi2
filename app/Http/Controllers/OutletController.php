@@ -272,7 +272,7 @@ class OutletController extends Controller
         $user = auth()->user();
 
         $isOwner = (int) $outlet->owner_id === (int) $user->id;
-        $isAssignedManager = $user->role === 'manager' && (int) $user->outlet_id === (int) $outlet->id;
+        $isAssignedManager = $user->role === 'manager' && (string) $user->outlet_id === (string) $outlet->id;
         $isDeveloper = $user->role === 'developer';
 
         if (!$isOwner && !$isAssignedManager && !$isDeveloper) {
