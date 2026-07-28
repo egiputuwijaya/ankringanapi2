@@ -30,7 +30,7 @@ return new class extends Migration
 
         // 3. Modifikasi kolom outlet_id di tabel-tabel anak
         $notNullTables = [
-            'products', 'orders', 'tables', 'shifts', 'shift_schedules',
+            'outlet_product', 'orders', 'tables', 'shifts', 'shift_schedules',
             'history_transactions', 'stock_histories', 'invoice_counters'
         ];
         foreach ($notNullTables as $table) {
@@ -48,7 +48,7 @@ return new class extends Migration
 
         // 4. Tambahkan kembali relasi Foreign Key
         $cascadeTables = [
-            'products', 'orders', 'tables', 'shifts', 'shift_schedules',
+            'outlet_product', 'orders', 'tables', 'shifts', 'shift_schedules',
             'history_transactions', 'stock_histories', 'taxes'
         ];
         foreach ($cascadeTables as $table) {
@@ -96,7 +96,7 @@ return new class extends Migration
         DB::statement('ALTER TABLE outlets MODIFY id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT;');
 
         $notNullTables = [
-            'products', 'orders', 'tables', 'shifts', 'shift_schedules',
+            'outlet_product', 'orders', 'tables', 'shifts', 'shift_schedules',
             'history_transactions', 'stock_histories', 'invoice_counters'
         ];
         foreach ($notNullTables as $table) {
@@ -113,7 +113,7 @@ return new class extends Migration
         }
 
         $cascadeTables = [
-            'products', 'orders', 'tables', 'shifts', 'shift_schedules',
+            'outlet_product', 'orders', 'tables', 'shifts', 'shift_schedules',
             'history_transactions', 'stock_histories', 'taxes'
         ];
         foreach ($cascadeTables as $table) {

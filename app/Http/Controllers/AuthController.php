@@ -186,16 +186,29 @@ class AuthController extends Controller
             'outlet_id' => 'required|exists:outlets,id'
         ]);
 
+        $throttleKey = "login-pin:{$request->outlet_id}:{$request->ip()}";
+
+        if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($throttleKey, 3)) {
+            $seconds = \Illuminate\Support\Facades\RateLimiter::availableIn($throttleKey);
+            return response()->json([
+                'message' => "Terlalu banyak percobaan. Silakan coba lagi dalam {$seconds} detik."
+            ], 429);
+        }
+
         $user = User::where('pin', (string) $request->pin)
             ->where('outlet_id', $request->outlet_id)
             ->where('role', 'karyawan')
             ->first();
 
         if (!$user) {
+            \Illuminate\Support\Facades\RateLimiter::hit($throttleKey, 30);
+            
             return response()->json([
                 'message' => 'PIN salah atau karyawan tidak terdaftar di outlet ini.'
             ], 401);
         }
+
+        \Illuminate\Support\Facades\RateLimiter::clear($throttleKey);
 
         if (!$user->is_active) {
             return response()->json([
