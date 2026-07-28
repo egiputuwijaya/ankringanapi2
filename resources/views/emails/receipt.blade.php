@@ -11,7 +11,7 @@
         <!-- Header -->
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
             <tr>
-                <td style="font-weight: 900; font-size: 22px; color: #5c3a21;">POS</td>
+                <td style="font-weight: 900; font-size: 22px; color: #5c3a21;">{{ \Illuminate\Support\Str::limit($order->outlet->name ?? 'POS', 20) }}</td>
                 <td align="right"><span style="background-color: #dcf3df; color: #2d7346; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: bold; letter-spacing: 0.5px;">PAID</span></td>
             </tr>
             <tr>
