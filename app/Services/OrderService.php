@@ -743,7 +743,7 @@ class OrderService
             ]
         );
 
-        if ($order->receipt_type === 'email' && !empty($order->customer_email)) {
+        if (!empty($order->customer_email)) {
             \Illuminate\Support\Facades\Mail::to($order->customer_email)->send(new \App\Mail\ReceiptMail($order));
         }
     }
