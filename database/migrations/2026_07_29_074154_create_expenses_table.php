@@ -13,8 +13,8 @@ return new class extends Migration
     {
         Schema::create('expenses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('outlet_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('outlet_id')->index();
+            $table->unsignedBigInteger('user_id')->nullable()->index();
             $table->string('category');
             $table->decimal('amount', 15, 2);
             $table->date('expense_date');
