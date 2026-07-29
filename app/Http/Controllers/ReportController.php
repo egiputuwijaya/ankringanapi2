@@ -108,9 +108,25 @@ class ReportController extends Controller
             SUM(history_transactions.total_price) as prev_revenue
         ')->first();
 
+        $totalCogsData = DB::table('order_items')
+            ->join('history_transactions', 'order_items.order_id', '=', 'history_transactions.order_id')
+            ->where('history_transactions.status', 'paid')
+            ->whereIn('history_transactions.outlet_id', $allowedOutletIds)
+            ->whereBetween('history_transactions.paid_at', [$startDate, $endDate])
+            ->selectRaw('SUM(COALESCE(order_items.cost_price, 0) * order_items.qty) as total_cogs')
+            ->first();
+        $totalCogs = (int) ($totalCogsData->total_cogs ?? 0);
+
+        $totalExpenses = (int) \App\Models\Expense::whereIn('outlet_id', $allowedOutletIds)
+            ->whereBetween('expense_date', [$startDate, $endDate])
+            ->sum('amount');
+
         $revenue = (int) ($summaryData->total_revenue ?? 0);
         $totalDiscount = (int) ($summaryData->total_discount ?? 0); // Diskon Akurat
         $totalTax = (int) ($summaryData->total_tax ?? 0); // Pajak Akurat
+        
+        $grossProfit = $revenue - $totalCogs;
+        $netProfit = $grossProfit - $totalExpenses;
 
         $prevRevenue = (int) ($prevSummaryData->prev_revenue ?? 0);
         $revenueGrowth = $prevRevenue > 0 ? round((($revenue - $prevRevenue) / $prevRevenue) * 100, 1) : null;
@@ -130,17 +146,20 @@ class ReportController extends Controller
 
         $dateExprGross = $this->dateExpr('history_transactions.paid_at');
 
-        // Data Gross (Kotor) dari harga per item
+        // Data Gross (Kotor) dan COGS dari harga per item
         $grossData = DB::table('order_items')
             ->join('history_transactions', 'order_items.order_id', '=', 'history_transactions.order_id')
             ->where('history_transactions.status', 'paid')
             ->whereIn('history_transactions.outlet_id', $allowedOutletIds)
             ->whereBetween('history_transactions.paid_at', [$startDate, $endDate])
-            ->selectRaw($dateExprGross . ' as date_val, SUM(order_items.total_price) as gross')
+            ->selectRaw($dateExprGross . ' as date_val, SUM(order_items.total_price) as gross, SUM(COALESCE(order_items.cost_price, 0) * order_items.qty) as cogs')
             ->groupBy(DB::raw($dateExprGross))
             ->get()
             ->mapWithKeys(function ($item) {
-                return [Carbon::parse($item->date_val)->format('Y-m-d') => $item->gross];
+                return [Carbon::parse($item->date_val)->format('Y-m-d') => [
+                    'gross' => $item->gross,
+                    'cogs' => $item->cogs
+                ]];
             });
 
         // --- B. REVENUE CHART & SALES REPORT ---
@@ -172,7 +191,11 @@ class ReportController extends Controller
             $tax = (int) $item->tax; // Akurat 100%
 
             // Jika ada diskriminasi data item vs nota, gunakan net + diskon - pajak
-            $gross = (int) ($grossData[$dateKey] ?? ($net + $discount - $tax));
+            $grossInfo = $grossData[$dateKey] ?? ['gross' => ($net + $discount - $tax), 'cogs' => 0];
+            $gross = (int) $grossInfo['gross'];
+            $cogs = (int) $grossInfo['cogs'];
+            
+            $gross_profit = $net - $cogs;
 
             return [
                 'date' => $dateKey,
@@ -181,6 +204,8 @@ class ReportController extends Controller
                 'discount' => $discount,
                 'tax' => $tax,
                 'net' => $net,
+                'cogs' => $cogs,
+                'gross_profit' => $gross_profit,
             ];
         })->values();
 
@@ -368,14 +393,20 @@ class ReportController extends Controller
             ")
             ->first();
 
+
+        $grossProfit = $revenue - $totalCogs;
         return response()->json([
             'summary' => [
                 'revenue' => $revenue,
+                'gross_profit' => $grossProfit,
+                'total_expenses' => $totalExpenses,
+                'net_profit' => $netProfit,
+                'total_cogs' => $totalCogs,
                 'transactions' => $transactions,
                 'avg_order' => $avgOrder,
                 'items_sold' => $itemsSold,
-                'total_discount' => $totalDiscount, // Sudah akurat!
-                'total_tax' => $totalTax, // Sudah akurat!
+                'total_discount' => $totalDiscount,
+                'total_tax' => $totalTax,
                 'revenue_growth' => $revenueGrowth,
                 'trx_growth' => $trxGrowth,
                 'unique_customers' => (int) ($customerMetrics->unique_customers ?? 0),
@@ -384,7 +415,7 @@ class ReportController extends Controller
             'revenue_chart' => $revenueChart,
             'sales_report' => $salesReport,
             'top_products' => $topProducts,
-            'cashier_performance' => $cashierPerformance,
+            'cashier_performance' => $cashierPerformance ?? [],
             'payment_methods' => $paymentMethods,
             'category_performance' => $categoryPerformance,
             'hourly_sales' => $fullHourly,

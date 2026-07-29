@@ -179,6 +179,7 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('products', ProductController::class);
         Route::apiResource('discounts', DiscountController::class);
         Route::apiResource('taxes', TaxController::class);
+        Route::apiResource('expenses', \App\Http\Controllers\ExpenseController::class);
 
         /*
         |--------------------------------------------------------------------------

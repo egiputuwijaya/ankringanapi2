@@ -17,6 +17,7 @@ class OrderItem extends Model
         'station_id',
         'qty',
         'price',
+        'cost_price',
         'total_price',
         'cancelled_qty',
         'status',

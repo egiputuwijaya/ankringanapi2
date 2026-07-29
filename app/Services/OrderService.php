@@ -369,6 +369,7 @@ class OrderService
                 'station_id' => $stationId,
                 'qty' => $qty,
                 'price' => $price,
+                'cost_price' => $product->cost_price ?? 0,
                 'total_price' => $price * $qty,
                 'notes' => $item['notes'] ?? null,
             ]);
