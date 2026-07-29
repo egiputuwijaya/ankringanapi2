@@ -21,6 +21,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\ExpenseController;
 
 Route::prefix('v1')->group(function () {
 
